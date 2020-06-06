@@ -2,14 +2,43 @@ package main
 
 import (
 	"context"
+	"log"
+	"math/rand"
+	"net/http"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
+	var (
+		percentageGauge = prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: "golang",
+				Name:      "percentageGauge",
+				Help:      "This is the percentage of good responses right now",
+			})
+	)
+
+	http.Handle("/metrics", promhttp.Handler())
+
+	prometheus.MustRegister(percentageGauge)
+
+	go func() {
+		for {
+			percentageGauge.Add(rand.Float64()*15 - 5)
+
+			time.Sleep(time.Second)
+		}
+	}()
+
+	log.Fatal(http.ListenAndServe(":8080", nil))
 
 	/** MONGO TESTING
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
@@ -71,6 +100,10 @@ func insertSingleResponse(ctx context.Context, collection *mongo.Collection, bso
 		return false
 	}
 	return true
+}
+
+func insertMultipleResponses(ctx context.Context, collection *mongo.Collection, bsonData bson.D) {
+
 }
 
 func deleteSingleResponse(ctx context.Context, collection *mongo.Collection, id int) bool {
